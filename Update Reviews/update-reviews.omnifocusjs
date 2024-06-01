@@ -36,7 +36,11 @@ var action = new PlugIn.Action(function(selection, sender) {
     monthlyReviewDate = formObject.values["monthlyReviewDate"];
     annualReviewDate = formObject.values["annualReviewDate"];
 
-    const projects = flattenedProjects;
+    // Filter out dropped and completed projects
+    const projects = flattenedProjects.filter(project => {
+        return project.status !== Project.Status.Dropped && project.status !== Project.Status.Done
+    });
+
     for (index in projects){
       var project = projects[index];
       var reviewInterval = project.reviewInterval;

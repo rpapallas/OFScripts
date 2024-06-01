@@ -1,0 +1,91 @@
+/*{
+"author": "Joe Buhlig & Rafael Papallas",
+"targets": ["omnifocus"],
+"type": "action",
+"identifier": "com.joebuhlig.omnifocus.com.books",
+"version": "0.1",
+"description": "Asks questions about a book and creates a project with tasks for reading it.",
+"label": "Read Book Tasks",
+"mediumLabel": "Create Book Reading Tasks",
+"paletteLabel": "Read Book Tasks",
+}*/
+(() => {
+    var action = new PlugIn.Action(function(selection, sender) {
+        // Tags to add to the new tasks
+        tagTitles = ["Reading"]
+        tagObjs = new Array()
+        tagTitles.forEach(title => {
+            tagObj = flattenedTags.byName(title) || new Tag(title)
+            tagObjs.push(tagObj)
+        })
+
+        const form = new Form();
+
+        var defaultStartDate = new Date();
+        defaultStartDate.setHours(0,0,0,0);
+
+        var defaultEndDate = new Date();
+        defaultEndDate.setHours(0,0,0,0);
+        defaultEndDate.setDate(defaultEndDate.getDate() + 7);
+
+        const folders = flattenedFolders.filter(folder => {
+            return folder.status === Folder.Status.Active
+        });
+
+        // Create arrays for folder names and indices
+        const folderNames = [];
+        const folderIndices = [];
+
+        // Populate the arrays
+        folders.forEach((folder, index) => {
+            folderNames.push(folder.name);
+            folderIndices.push(index);
+        });
+
+        var folder = new Form.Field.Option(
+            "folder",
+            "Folder to create project",
+            folderIndices,
+            folderNames,
+            0
+        )
+        var bookTitle = new Form.Field.String("bookTitle", "Book Title");
+        var numberOfPages = new Form.Field.String("numberOfPages", "Number of Pages", 100);
+        var startReadingDate = new Form.Field.Date("startReadingDate", "Start Reading", defaultStartDate);
+        var endReadingDate = new Form.Field.Date("endReadingDate", "End Reading", defaultEndDate);
+
+        form.addField(folder, 0);
+        form.addField(bookTitle, 1);
+        form.addField(numberOfPages, 2);
+        form.addField(startReadingDate, 3);
+        form.addField(endReadingDate, 4);
+
+        const formPromise = form.show("Provide book details", "Create Project");
+        formPromise.then(function(formObject){
+            folderIndex = formObject.values["folder"];
+            title = formObject.values["bookTitle"];
+            pages = formObject.values["numberOfPages"];
+            startReadingDate = formObject.values["startReadingDate"];
+            endReadingDate = formObject.values["endReadingDate"];
+
+            const numDays = Math.round((endReadingDate - startReadingDate) / (1000 * 60 * 60 * 24));
+            const pagesPerDay = Math.round(pages / numDays);
+            var startPage = 1;
+            var endPage = pagesPerDay;
+
+            var project = new Project(`Read book "${title}"`, folders[folderIndex]);
+            project.sequential = true;
+            project.addTags(tagObjs)
+
+            for (let i = 1; i <= numDays; i++) {
+                if(i === numDays)
+                    endPage = pages;
+                new Task(`Read pages ${startPage} - ${endPage} of the book "${title}"`, project);
+                startPage = endPage + 1;
+                endPage = pagesPerDay * (i + 1);
+            }
+        });
+    });
+
+    return action;
+})();
